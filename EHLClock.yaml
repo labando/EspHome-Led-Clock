@@ -93,6 +93,16 @@ esphome:
     - priority: -100
       then:
         - lambda: 'id(ehdp_discovery).publish_state(id(my_ehdp).is_enabled());'
+    - priority: 300 # apply saved WiFi PHY mode before the wifi component connects
+      then:
+        - lambda: |-
+            if (id(g_phy_mode) == 1) {
+              WiFi.setPhyMode(WIFI_PHY_MODE_11B);
+            } else if (id(g_phy_mode) == 2) {
+              WiFi.setPhyMode(WIFI_PHY_MODE_11G);
+            } else if (id(g_phy_mode) == 3) {
+              WiFi.setPhyMode(WIFI_PHY_MODE_11N);
+            }
 
 esp8266:
 # Sinilink XY-Clock: Keep next 1 line (delete for others) / The Sinilink uses an ESP8285H16 with 2M of flash, the same as ESP_WROOM_02
@@ -834,6 +844,10 @@ interval:
           }
 
 globals:
+  - id: g_phy_mode # 1=802.11b, 2=802.11g, 3=802.11n - used to persist the WiFi PHY Mode select across reboots
+    type: int
+    restore_value: yes
+    initial_value: '2'
   - id: message
     type: std::string
     restore_value: false
@@ -1249,6 +1263,32 @@ select:
             ESP_LOGI("info", "Colon Blink: %d", id(blink_option));
     entity_category: config
     icon: mdi:shimmer
+  - platform: template
+    name: "WiFi PHY Mode"
+    id: phy_mode_select
+    restore_value: true
+    optimistic: true
+    options:
+      - "802.11b"
+      - "802.11g"
+      - "802.11n"
+    initial_option: "802.11g"
+    on_value:
+      then:
+        - lambda: |-
+            if (x == "802.11b") {
+              id(g_phy_mode) = 1;
+              WiFi.setPhyMode(WIFI_PHY_MODE_11B);
+            } else if (x == "802.11g") {
+              id(g_phy_mode) = 2;
+              WiFi.setPhyMode(WIFI_PHY_MODE_11G);
+            } else if (x == "802.11n") {
+              id(g_phy_mode) = 3;
+              WiFi.setPhyMode(WIFI_PHY_MODE_11N);
+            }
+            ESP_LOGI("info", "WiFi PHY Mode set to: %s", x.c_str());
+    entity_category: config
+    icon: mdi:wifi-settings
 
 number:
   - platform: template
